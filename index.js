@@ -9,7 +9,7 @@ app.use(cors());
 app.use(express.json());
 
 // Database Connection:
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_NAME}:${process.env.DB_PASS}@bistrodb.ff4mfop.mongodb.net/?retryWrites=true&w=majority&appName=bistroDb`;
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -35,8 +35,15 @@ async function run() {
     })
 
     // Carts:
+    app.delete("/carts/:id", async(req, res) => {
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)};
+      const result = await cartsCollecntion.deleteOne(query);
+      res.send(result);
+    })
     app.get("/carts", async(req, res) => {
-      result = await cartsCollecntion.find({}).toArray();
+      const email = req.query.email;
+      result = await cartsCollecntion.find({email}).toArray();
       res.send(result);
     })
     app.post("/carts", async (req, res) => {
