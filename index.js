@@ -40,27 +40,50 @@ async function run() {
     });
     // Verify Token Middleware:
     const verifyToken = (req, res, next) => {
-      console.log(req.headers.authorization);
       if (!req.headers.authorization) {
         return res.status(401).send({ message: "Forbidden Access!" });
       }
       const token = req.headers.authorization.split(" ")[1];
       jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
         if (err) {
-          return res.status(401).send({ message: '"Forbidden Access' });
+          return res.status(401).send({ message: 'Forbidden Access' });
         }
         req.decoded = decoded;
         next();
       });
     };
 
-    // Check Admin:
-    app.get("user/admin/:email", verifyToken, async (req, res) => {
+    // Verify Admin Middleware:
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await userCollecntion.findOne(query);
+      const isAmin = user?.role === "admin";
+      if (!isAmin) {
+        return res.status(403).send({ message: "Forbidden Access" });
+      }
+      next();
+    };
 
+    // Check Admin:
+    app.get("/user/admin/:email", verifyToken, async (req, res) => {
+      const email = req?.params?.email;
+      console.log(email);
+      if (!req.decoded || email !== req.decoded.email) {
+        return res.status(403).send({ message: "Unauthorized Access!" });
+      }
+
+      const query = { email: email };
+      const user = await userCollecntion.findOne(query);
+      let isAdmin = false;
+      if (user) {
+        isAdmin = user.role === "admin" ? true : false;
+      }
+      res.send({ isAdmin });
     });
 
     // User Related API:
-    app.patch("/user/admin/:id", async (req, res) => {
+    app.patch("/user/admin/:id", verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const updateToAdmin = {
@@ -71,13 +94,13 @@ async function run() {
       const result = await userCollecntion.updateOne(query, updateToAdmin);
       res.send(result);
     });
-    app.delete("users/:id", async (req, res) => {
+    app.delete("users/:id", verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await userCollecntion.deleteOne(query);
       res.send(result);
     });
-    app.get("/users", verifyToken, async (req, res) => {
+    app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
       const result = await userCollecntion.find({}).toArray();
       res.send(result);
     });
