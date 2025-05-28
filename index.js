@@ -46,7 +46,7 @@ async function run() {
       const token = req.headers.authorization.split(" ")[1];
       jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
         if (err) {
-          return res.status(401).send({ message: 'Forbidden Access' });
+          return res.status(401).send({ message: "Forbidden Access" });
         }
         req.decoded = decoded;
         next();
@@ -68,7 +68,6 @@ async function run() {
     // Check Admin:
     app.get("/user/admin/:email", verifyToken, async (req, res) => {
       const email = req?.params?.email;
-      console.log(email);
       if (!req.decoded || email !== req.decoded.email) {
         return res.status(403).send({ message: "Unauthorized Access!" });
       }
@@ -110,10 +109,41 @@ async function run() {
       res.send(result);
     });
 
-    // Load Menu:
+    // Menu Item API:
     app.get("/menu", async (req, res) => {
       const result = await menuCollecntion.find({}).toArray();
       res.send(result);
+    });
+
+    app.delete("/item/:id", verifyToken, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await menuCollecntion.deleteOne(query);
+      res.send(result);
+    });
+
+    app.patch("/item/:id", verifyToken, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const { name, category, price, recipe } = req.body;
+      console.log(req.body);
+
+      try {
+        const filter = { _id: new ObjectId(id) };
+        const updatedDoc = {
+          $set: {
+            name,
+            category,
+            price,
+            recipe,
+          },
+        };
+
+        const result = await menuCollecntion.updateOne(filter, updatedDoc);
+        res.send(result);
+      } catch (error) {
+        console.error("Update Error:", error);
+        res.status(500).send({ message: "Internal Server Error" });
+      }
     });
 
     // Carts:
