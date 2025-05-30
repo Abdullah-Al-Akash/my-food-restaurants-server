@@ -32,6 +32,7 @@ async function run() {
     const reviewsCollection = db.collection("reviews");
     const cartsCollecntion = db.collection("carts");
     const userCollecntion = db.collection("users");
+    const paymentCollecntion = db.collection("payments");
 
     // Token Related API:
     app.post("/jwt", async (req, res) => {
@@ -167,20 +168,61 @@ async function run() {
       res.send(result);
     });
 
-    // Payment Intent:
-    app.post('/create-payment', async(req, res) => {
-      const{price} = req.body;
+    // Payment Create and Intent:
+    app.post("/create-payment", async (req, res) => {
+      const { price } = req.body;
       const amount = parseInt(price * 100);
-      console.log((amount));
+      console.log(amount);
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
-        currency: 'usd',
-        payment_method_types: ["card"]
-      })
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
       res.send({
-        clientSecret: paymentIntent.client_secret
-      })
+        clientSecret: paymentIntent.client_secret,
+      });
+    });
+    // After Payment Done:
+    app.post("/payment-done", async (req, res) => {
+      const paymentInfo = req.body;
+      const paymentResult = await paymentCollecntion.insertOne(paymentInfo);
+
+      // After Payment Card Will be deleted:
+      const query = {
+        _id: {
+          $in: paymentInfo.cartIds.map(id => new ObjectId(id))
+        }
+      };
+      console.log(query);
+      const deletedResult = await cartsCollecntion.deleteMany(query);
+      res.send(paymentResult, deletedResult);
+    });
+
+    // Payment History:
+    app.get('/payment', async(req, res) => {
+      const email = req.query.email;
+      const query = {email: email};
+      const result = await paymentCollecntion.find(query).toArray();
+      res.send(result)
     })
+
+    // After Payment Food Details:
+    app.get('/food-details/:id', async(req, res) => {
+      const id = req.params.id;
+      const queryForPayment = {_id: new ObjectId(id)};
+      const paymentInfo = await paymentCollecntion.find(queryForPayment).toArray();
+
+      // Now Get The Item:
+      const foodIds = paymentInfo[0].foodIds;
+      const queryForFood = {
+        _id: {
+          $in : foodIds.map(id => new ObjectId(id))
+        }
+      }
+      const result = await menuCollecntion.find(queryForFood).toArray();
+      res.send(result);
+    })
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
