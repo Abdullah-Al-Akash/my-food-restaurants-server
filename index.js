@@ -26,7 +26,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
     const db = client.db("bistroDb");
     const menuCollecntion = db.collection("menu");
     const reviewsCollection = db.collection("reviews");
@@ -190,8 +190,8 @@ async function run() {
       // After Payment Card Will be deleted:
       const query = {
         _id: {
-          $in: paymentInfo.cartIds.map(id => new ObjectId(id))
-        }
+          $in: paymentInfo.cartIds.map((id) => new ObjectId(id)),
+        },
       };
       console.log(query);
       const deletedResult = await cartsCollecntion.deleteMany(query);
@@ -199,35 +199,111 @@ async function run() {
     });
 
     // Payment History:
-    app.get('/payment', async(req, res) => {
+    app.get("/payment", async (req, res) => {
       const email = req.query.email;
-      const query = {email: email};
+      const query = { email: email };
       const result = await paymentCollecntion.find(query).toArray();
-      res.send(result)
-    })
+      res.send(result);
+    });
 
     // After Payment Food Details:
-    app.get('/food-details/:id', async(req, res) => {
+    app.get("/food-details/:id", async (req, res) => {
       const id = req.params.id;
-      const queryForPayment = {_id: new ObjectId(id)};
-      const paymentInfo = await paymentCollecntion.find(queryForPayment).toArray();
+      const queryForPayment = { _id: new ObjectId(id) };
+      const paymentInfo = await paymentCollecntion
+        .find(queryForPayment)
+        .toArray();
 
       // Now Get The Item:
       const foodIds = paymentInfo[0].foodIds;
       const queryForFood = {
         _id: {
-          $in : foodIds.map(id => new ObjectId(id))
-        }
-      }
+          $in: foodIds.map((id) => new ObjectId(id)),
+        },
+      };
       const result = await menuCollecntion.find(queryForFood).toArray();
       res.send(result);
-    })
+    });
+
+    // Admin Stats:
+    app.get("/admin/stats", verifyToken, verifyAdmin, async (req, res) => {
+      const users = await userCollecntion.estimatedDocumentCount();
+      const menuItems = await menuCollecntion.estimatedDocumentCount();
+      const orders = await paymentCollecntion.estimatedDocumentCount();
+      const result = await paymentCollecntion
+        .aggregate([
+          {
+            $group: {
+              _id: null,
+              totalRevenue: {
+                $sum: "$price",
+              },
+            },
+          },
+        ])
+        .toArray();
+
+      const revenue = result.length > 0 ? result[0].totalRevenue : 0;
+
+      res.send({
+        users,
+        menuItems,
+        orders,
+        revenue,
+      });
+    });
+
+    // Order Stats:
+    app.get("/order-stats", verifyToken, verifyAdmin, async (req, res) => {
+      const result = await paymentCollecntion
+        .aggregate([
+          { $unwind: "$foodIds" },
+          {
+            $addFields: {
+              foodObjectId: { $toObjectId: "$foodIds" }, // ✅ ObjectId বানানো
+            },
+          },
+          {
+            $lookup: {
+              from: "menu",
+              localField: "foodObjectId",
+              foreignField: "_id",
+              as: "menuItems",
+            },
+          },
+          {
+            $unwind: "$menuItems",
+          },
+          {
+            $group: {
+              _id: "$menuItems.category",
+              quantity: {
+                $sum: 1,
+              },
+              revenue: {
+                $sum: "$menuItems.price"
+              }
+            },
+          },
+          {
+            $project: {
+              _id: 0,
+              category: '$_id',
+              quantity: '$quantity',
+              revenue: '$revenue'
+            }
+          }
+        ])
+        .toArray();
+
+      res.send(result);
+    });
 
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
-    );
+    // await client.db("admin").command({ ping: 1 });
+    // console.log(
+    //   "Pinged your deployment. You successfully connected to MongoDB!"
+    // );
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
