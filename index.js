@@ -120,6 +120,27 @@ async function run() {
       res.send(result[0]);
     });
 
+    app.patch("/user/:id", verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const { photo } = req.body;
+      console.log(req.body);
+
+      try {
+        const filter = { _id: new ObjectId(id) };
+        const updatedDoc = {
+          $set: {
+            photo: photo
+          },
+        };
+
+        const result = await userCollecntion.updateOne(filter, updatedDoc);
+        res.send(result);
+      } catch (error) {
+        console.error("Update Error:", error);
+        res.status(500).send({ message: "Internal Server Error" });
+      }
+    });
+
     // Menu Item API:
     app.get("/menu", async (req, res) => {
       const result = await menuCollecntion.find({}).toArray();
