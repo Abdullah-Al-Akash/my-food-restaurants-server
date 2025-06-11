@@ -85,6 +85,26 @@ async function run() {
       res.send({ isAdmin });
     });
 
+    // Order Status Update API:
+    app.patch(
+      "/update-status/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        const status = req.body;
+        console.log(status.status);
+        const query = {_id : new ObjectId(id)};
+        const updateStatus = {
+          $set: {
+            status: status.status
+          }
+        }
+        const result = await paymentCollecntion.updateOne(query, updateStatus);
+        res.send(result);
+      }
+    );
+
     // User Related API:
     app.patch("/user/admin/:id", verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
@@ -129,7 +149,7 @@ async function run() {
         const filter = { _id: new ObjectId(id) };
         const updatedDoc = {
           $set: {
-            photo: photo
+            photo: photo,
           },
         };
 
@@ -235,7 +255,7 @@ async function run() {
     });
 
     // After Payment Food Details:
-    app.get("/food-details/:id", async (req, res) => {
+    app.get("/food-details/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const queryForPayment = { _id: new ObjectId(id) };
       const paymentInfo = await paymentCollecntion
@@ -250,6 +270,12 @@ async function run() {
         },
       };
       const result = await menuCollecntion.find(queryForFood).toArray();
+      res.send(result);
+    });
+
+    // Admin Manage Order Details:
+    app.get("/orders", verifyToken, verifyAdmin, async (req, res) => {
+      const result = await paymentCollecntion.find().toArray();
       res.send(result);
     });
 
