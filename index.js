@@ -353,6 +353,23 @@ async function run() {
       res.send(result);
     });
 
+    // Review Details:
+    app.post("/review/:id", verifyToken, async(req, res) => {
+      const id = req.params.id;
+      const review = req.body;
+      const query = {_id: new ObjectId(id)};
+      const updateDoc = {
+        $set: {
+          review: review
+        }
+      }
+      const result1 = await paymentCollecntion.updateOne(query, updateDoc);
+      const result2 = await reviewsCollection.insertOne(review);
+
+      res.send({result1, result2})
+
+    })
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
