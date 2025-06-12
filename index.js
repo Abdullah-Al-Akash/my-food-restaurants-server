@@ -94,12 +94,12 @@ async function run() {
         const id = req.params.id;
         const status = req.body;
         console.log(status.status);
-        const query = {_id : new ObjectId(id)};
+        const query = { _id: new ObjectId(id) };
         const updateStatus = {
           $set: {
-            status: status.status
-          }
-        }
+            status: status.status,
+          },
+        };
         const result = await paymentCollecntion.updateOne(query, updateStatus);
         res.send(result);
       }
@@ -162,6 +162,12 @@ async function run() {
     });
 
     // Menu Item API:
+    app.post("/menu", verifyToken, verifyAdmin, async (req, res) => {
+      const item = req.body;
+      const result = await menuCollecntion.insertOne(item);
+      res.send(result);
+    });
+
     app.get("/menu", async (req, res) => {
       const result = await menuCollecntion.find({}).toArray();
       res.send(result);
@@ -353,22 +359,26 @@ async function run() {
       res.send(result);
     });
 
-    // Review Details:
-    app.post("/review/:id", verifyToken, async(req, res) => {
+    // Reviews API:
+    app.get("/review", async (req, res) => {
+      const result = await reviewsCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.post("/review/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const review = req.body;
-      const query = {_id: new ObjectId(id)};
+      const query = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
-          review: review
-        }
-      }
+          review: review,
+        },
+      };
       const result1 = await paymentCollecntion.updateOne(query, updateDoc);
       const result2 = await reviewsCollection.insertOne(review);
 
-      res.send({result1, result2})
-
-    })
+      res.send({ result1, result2 });
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
